@@ -1,7 +1,7 @@
-import {ISolutionExplorerRepository} from 'solutionexplorer.repository.contracts';
+import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
 import {IIdentity} from '@essential-projects/core_contracts';
-import {IDiagram, ISolution} from 'solutionexplorer.contracts';
+import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
 
 import * as fs from 'fs';
 import * as path from 'path';
