@@ -14,9 +14,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _basePath: string;
   private _identity: IIdentity;
 
-  private _readDirectory: any = promisify(fs.readdir);
-  private _readFile: any = promisify(fs.readFile);
-  private _writeFile: any = promisify(fs.writeFile);
+  private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
+  private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
+  private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
     await this._checkForDirectory(pathspec);
@@ -39,7 +39,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
       .map(async(file: string) => {
 
         const fullPathToFile: string = path.join(this._basePath, file);
-        const fileNameWithoutBpmnSuffix: string = file.substr(0, file.length - BPMN_FILE_SUFFIX.length);
+        const fileNameWithoutBpmnSuffix: string = path.basename(file, BPMN_FILE_SUFFIX);
 
         const xml: string = await this._readFile(fullPathToFile, 'utf8');
 
@@ -70,14 +70,15 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   public async saveSingleDiagram(diagramToSave: IDiagram, identity: IIdentity, pathToSave?: string): Promise<IDiagram> {
     const newPathIsSet: boolean = pathToSave !== null && pathToSave !== undefined;
+    let pathToWrite: string = diagramToSave.uri;
 
     if (newPathIsSet) {
       await this._checkWriteablity(pathToSave);
-      diagramToSave.uri = pathToSave;
+      pathToWrite = pathToSave;
     }
 
     try {
-      this._writeFile(diagramToSave.uri, diagramToSave.xml);
+      this._writeFile(pathToWrite, diagramToSave.xml);
 
       return diagramToSave;
     } catch (e) {
