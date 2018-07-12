@@ -73,9 +73,10 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     let pathToWrite: string = diagramToSave.uri;
 
     if (newPathIsSet) {
-      await this._checkWriteablity(pathToSave);
       pathToWrite = pathToSave;
     }
+
+    await this._checkWriteablity(pathToWrite);
 
     try {
       this._writeFile(pathToWrite, diagramToSave.xml);
