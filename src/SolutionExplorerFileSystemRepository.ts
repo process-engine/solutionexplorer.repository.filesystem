@@ -1,7 +1,7 @@
-import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
-import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
 import {IIdentity} from '@essential-projects/core_contracts';
+import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
 import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
+import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,9 +14,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _basePath: string;
   private _identity: IIdentity;
 
-  private _readDirectory = promisify(fs.readdir);
-  private _readFile = promisify(fs.readFile);
-  private _writeFile = promisify(fs.writeFile);
+  private _readDirectory: any = promisify(fs.readdir);
+  private _readFile: any = promisify(fs.readFile);
+  private _writeFile: any = promisify(fs.writeFile);
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
     await this._checkForDirectory(pathspec);
@@ -36,23 +36,55 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     }
 
     const diagrams: Array<Promise<IDiagram>> = bpmnFiles
-      .map(async (file: string) => {
+      .map(async(file: string) => {
 
         const fullPathToFile: string = path.join(this._basePath, file);
-        const fileNameWithoutBpmnSuffix = file.substr(0, file.length - BPMN_FILE_SUFFIX.length);
+        const fileNameWithoutBpmnSuffix: string = file.substr(0, file.length - BPMN_FILE_SUFFIX.length);
 
         const xml: string = await this._readFile(fullPathToFile, 'utf8');
 
         const diagram: IDiagram = {
           name: fileNameWithoutBpmnSuffix,
           uri: fullPathToFile,
-          xml: xml
+          xml: xml,
         };
 
         return diagram;
     });
 
     return Promise.all(diagrams);
+  }
+
+  public async openSingleDiagram(fullPathToDiagram: string, identity: IIdentity): Promise<IDiagram> {
+    const xml: string = await this._readFile(fullPathToDiagram, 'utf8');
+    const diagramName: string = path.basename(fullPathToDiagram, BPMN_FILE_SUFFIX);
+
+    const diagram: IDiagram = {
+      name: diagramName,
+      uri: fullPathToDiagram,
+      xml: xml,
+    };
+
+    return diagram;
+  }
+
+  public async saveSingleDiagram(diagramToSave: IDiagram, identity: IIdentity, pathToSave?: string): Promise<IDiagram> {
+    const newPathIsSet: boolean = pathToSave !== null && pathToSave !== undefined;
+
+    if (newPathIsSet) {
+      await this._checkWriteablity(pathToSave);
+      diagramToSave.uri = pathToSave;
+    }
+
+    try {
+      this._writeFile(diagramToSave.uri, diagramToSave.xml);
+
+      return diagramToSave;
+    } catch (e) {
+      const error: InternalServerError = new InternalServerError('Unable to save diagram.');
+      error.additionalInformation = e;
+      throw error;
+    }
   }
 
   public async getDiagramByName(diagramName: string): Promise<IDiagram> {
@@ -100,11 +132,11 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     }
   }
 
-  public async saveSolution(solution: ISolution, path?: string): Promise<void> {
-    const newPathWasSet: boolean = path !== undefined && path !== null;
+  public async saveSolution(solution: ISolution, pathToSolution?: string): Promise<void> {
+    const newPathWasSet: boolean = pathToSolution !== undefined && pathToSolution !== null;
 
     if (newPathWasSet) {
-      await this.openPath(path, this._identity);
+      await this.openPath(pathToSolution, this._identity);
     }
 
     const promises: Array<Promise<void>> = solution.diagrams.map((diagram: IDiagram) => {
