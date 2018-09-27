@@ -1,5 +1,5 @@
-import {IIdentity} from '@essential-projects/core_contracts';
 import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
+import {IIdentity} from '@essential-projects/iam_contracts';
 import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
 import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 
