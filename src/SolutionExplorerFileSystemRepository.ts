@@ -11,12 +11,18 @@ const BPMN_FILE_SUFFIX: string = '.bpmn';
 
 export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRepository {
 
+  private _trashFolder: string;
   private _basePath: string;
   private _identity: IIdentity;
 
   private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
+  private _rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
+
+  constructor(trashFolder: string) {
+    this._trashFolder = trashFolder;
+  }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
     await this._checkForDirectory(pathspec);
@@ -146,6 +152,48 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     });
 
     await Promise.all(promises);
+  }
+
+  public async deleteDiagram(diagram: IDiagram): Promise<void> {
+    try {
+      await this._checkForDirectory(this._trashFolder);
+    } catch (error) {
+      throw new BadRequestError('Trash folder is not writeable.');
+    }
+
+    const orginalTargetFile: string = path.join(this._trashFolder, diagram.name + BPMN_FILE_SUFFIX);
+    let targetFile: string = orginalTargetFile;
+
+    let fileAlreadyExists: boolean = fs.existsSync(targetFile);
+    let elusiveCount: number = 1;
+
+    // If the target file is already there, find another name for the dleted diagram.
+    while (fileAlreadyExists) {
+      fileAlreadyExists = fs.existsSync(targetFile);
+
+      targetFile = `${orginalTargetFile}.${elusiveCount}`;
+      elusiveCount++;
+    }
+
+    await this._rename(diagram.uri, targetFile);
+  }
+
+  public async renameDiagram(diagram: IDiagram, newName: string): Promise<IDiagram> {
+    const nameWithSuffix: string = newName + BPMN_FILE_SUFFIX;
+    const newDiagramUri: string = path.join(this._basePath, nameWithSuffix);
+
+    await this._checkWriteablity(newDiagramUri);
+
+    const fileAlreadyExists: boolean = fs.existsSync(newDiagramUri);
+    if (fileAlreadyExists) {
+      throw new BadRequestError(`A file with the name ${newDiagramUri} already exists.`);
+    }
+
+    await this._rename(diagram.uri, newDiagramUri);
+
+    const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
+
+    return renamedDiagram;
   }
 
   private async _checkForDirectory(directoryPath: string): Promise<void> {
