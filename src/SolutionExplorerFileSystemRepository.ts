@@ -165,14 +165,14 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     let targetFile: string = orginalTargetFile;
 
     let fileAlreadyExists: boolean = fs.existsSync(targetFile);
-    let elusiveCount: number = 1;
+    let attemptCount: number = 1;
 
     // If the target file is already there, find another name for the dleted diagram.
     while (fileAlreadyExists) {
       fileAlreadyExists = fs.existsSync(targetFile);
 
-      targetFile = `${orginalTargetFile}.${elusiveCount}`;
-      elusiveCount++;
+      targetFile = `${orginalTargetFile}.${attemptCount}`;
+      attemptCount++;
     }
 
     await this._rename(diagram.uri, targetFile);
