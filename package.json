@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/solutionexplorer.repository.filesystem",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "The SolutionExplorer filesystem repository",
   "main": "dist/amd/index.js",
   "typings": "dist/index.d.ts",
@@ -15,7 +15,7 @@
   "dependencies": {
     "@essential-projects/errors_ts": "^1.2.0",
     "@process-engine/solutionexplorer.contracts": "1.0.0",
-    "@process-engine/solutionexplorer.repository.contracts": "2.0.0"
+    "@process-engine/solutionexplorer.repository.contracts": "3.0.0"
   },
   "devDependencies": {
     "@essential-projects/tslint-config": "1.0.0",
