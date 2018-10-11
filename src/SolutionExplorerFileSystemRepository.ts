@@ -11,7 +11,7 @@ const BPMN_FILE_SUFFIX: string = '.bpmn';
 
 export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRepository {
 
-  private _trashFolder: string;
+  private _trashFolderLocation: string;
   private _basePath: string;
   private _identity: IIdentity;
 
@@ -20,8 +20,8 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
   private _rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
 
-  constructor(trashFolder: string) {
-    this._trashFolder = trashFolder;
+  constructor(trashFolderLocation: string) {
+    this._trashFolderLocation = trashFolderLocation;
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
@@ -156,12 +156,12 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   public async deleteDiagram(diagram: IDiagram): Promise<void> {
     try {
-      await this._checkForDirectory(this._trashFolder);
+      await this._checkForDirectory(this._trashFolderLocation);
     } catch (error) {
       throw new BadRequestError('Trash folder is not writeable.');
     }
 
-    const orginalTargetFile: string = path.join(this._trashFolder, diagram.name + BPMN_FILE_SUFFIX);
+    const orginalTargetFile: string = path.join(this._trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
     let targetFile: string = orginalTargetFile;
 
     let fileAlreadyExists: boolean = fs.existsSync(targetFile);
