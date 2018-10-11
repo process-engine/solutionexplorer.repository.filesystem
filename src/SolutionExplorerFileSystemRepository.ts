@@ -161,19 +161,8 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
       throw new BadRequestError('Trash folder is not writeable.');
     }
 
-    const orginalTargetFile: string = path.join(this._trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
-    let targetFile: string = orginalTargetFile;
-
-    let fileAlreadyExists: boolean = fs.existsSync(targetFile);
-    let attemptCount: number = 1;
-
-    // If the target file is already there, find another name for the dleted diagram.
-    while (fileAlreadyExists) {
-      fileAlreadyExists = fs.existsSync(targetFile);
-
-      targetFile = `${orginalTargetFile}.${attemptCount}`;
-      attemptCount++;
-    }
+    const desiredName: string = path.join(this._trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
+    const targetFile: string = await this._findUnusedFilename(desiredName);
 
     await this._rename(diagram.uri, targetFile);
   }
@@ -194,6 +183,25 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
 
     return renamedDiagram;
+  }
+
+  /**
+   * Tries to construct a filename that is currently unused. The method will
+   * keep adding parts to the desiredName until its the filename is unused.
+   *
+   * @param desiredName the desired name of the file.
+   * @return a filename that is currently unused.
+   */
+  private async _findUnusedFilename(desiredName: string): Promise<string> {
+    let currentName: string = desiredName;
+    let attempt: number = 1;
+
+    while (fs.existsSync(currentName)) {
+      currentName = `${desiredName}.${attempt}`;
+      attempt++;
+    }
+
+    return currentName;
   }
 
   private async _checkForDirectory(directoryPath: string): Promise<void> {
