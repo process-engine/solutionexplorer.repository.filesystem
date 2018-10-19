@@ -175,7 +175,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
     const fileAlreadyExists: boolean = fs.existsSync(newDiagramUri);
     if (fileAlreadyExists) {
-      throw new BadRequestError(`A file with the name ${newDiagramUri} already exists.`);
+      throw new BadRequestError(`A file with the name ${newName} already exists.`);
     }
 
     await this._rename(diagram.uri, newDiagramUri);
