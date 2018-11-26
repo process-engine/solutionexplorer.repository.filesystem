@@ -91,6 +91,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     } catch (e) {
       const error: InternalServerError = new InternalServerError('Unable to save diagram.');
       error.additionalInformation = e;
+
       throw error;
     }
   }
