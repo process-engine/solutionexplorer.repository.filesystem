@@ -61,40 +61,6 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     return Promise.all(diagrams);
   }
 
-  public async openSingleDiagram(fullPathToDiagram: string, identity: IIdentity): Promise<IDiagram> {
-    const xml: string = await this._readFile(fullPathToDiagram, 'utf8');
-    const diagramName: string = path.basename(fullPathToDiagram, BPMN_FILE_SUFFIX);
-
-    const diagram: IDiagram = {
-      name: diagramName,
-      uri: fullPathToDiagram,
-      xml: xml,
-    };
-
-    return diagram;
-  }
-
-  public async saveSingleDiagram(diagramToSave: IDiagram, identity: IIdentity, pathToSave?: string): Promise<IDiagram> {
-    const newPathIsSet: boolean = pathToSave !== null && pathToSave !== undefined;
-    let pathToWrite: string = diagramToSave.uri;
-
-    if (newPathIsSet) {
-      pathToWrite = pathToSave;
-    }
-
-    await this._checkWriteablity(pathToWrite);
-
-    try {
-      this._writeFile(pathToWrite, diagramToSave.xml);
-
-      return diagramToSave;
-    } catch (e) {
-      const error: InternalServerError = new InternalServerError('Unable to save diagram.');
-      error.additionalInformation = e;
-      throw error;
-    }
-  }
-
   public async getDiagramByName(diagramName: string): Promise<IDiagram> {
     const fullPathToFile: string = path.join(this._basePath, `${diagramName}.bpmn`);
 
@@ -112,21 +78,10 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   public async saveDiagram(diagramToSave: IDiagram, newPathSpec?: string): Promise<void> {
     const newPathSpecWasSet: boolean = newPathSpec !== null && newPathSpec !== undefined;
-    let pathToWriteDiagram: string;
+    let pathToWriteDiagram: string = diagramToSave.uri;
 
     if (newPathSpecWasSet) {
-
       pathToWriteDiagram = newPathSpec;
-
-    } else {
-      const expectedUriForDiagram: string = path.join(this._basePath, `${diagramToSave.name}.bpmn`);
-
-      const uriOfDiagramWasChanged: boolean = expectedUriForDiagram !== diagramToSave.uri;
-      if (uriOfDiagramWasChanged) {
-        throw new BadRequestError('Target Location (URI) of diagram was changed; Moving a diagram is currently not supported.');
-      }
-
-      pathToWriteDiagram = diagramToSave.uri;
     }
 
     await this._checkWriteablity(pathToWriteDiagram);
@@ -136,6 +91,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     } catch (e) {
       const error: InternalServerError = new InternalServerError('Unable to save diagram.');
       error.additionalInformation = e;
+
       throw error;
     }
   }
