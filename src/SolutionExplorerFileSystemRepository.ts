@@ -129,8 +129,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
     await this._checkWriteablity(newDiagramUri);
 
+    const diagramNameChanged: boolean = newName.toLowerCase() !== diagram.name.toLowerCase();
     const fileAlreadyExists: boolean = fs.existsSync(newDiagramUri);
-    if (fileAlreadyExists) {
+    if (fileAlreadyExists && diagramNameChanged) {
       throw new BadRequestError(`A file named: ${newName} already exists in location: ${this._basePath}.`);
     }
 
