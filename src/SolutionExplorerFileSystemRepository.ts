@@ -61,8 +61,10 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     return Promise.all(diagrams);
   }
 
-  public async getDiagramByName(diagramName: string): Promise<IDiagram> {
-    const fullPathToFile: string = path.join(this._basePath, `${diagramName}.bpmn`);
+  public async getDiagramByName(diagramName: string, newPath?: string): Promise<IDiagram> {
+    const pathSpec: string = newPath ? newPath : this._basePath;
+
+    const fullPathToFile: string = path.join(pathSpec, `${diagramName}.bpmn`);
 
     const xml: string = await this._readFile(fullPathToFile, 'utf8');
 

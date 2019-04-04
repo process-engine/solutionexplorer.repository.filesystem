@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/solutionexplorer.repository.filesystem",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "The SolutionExplorer filesystem repository",
   "main": "dist/amd/index.js",
   "typings": "dist/index.d.ts",
@@ -14,14 +14,15 @@
   "license": "MIT",
   "dependencies": {
     "@essential-projects/errors_ts": "^1.2.0",
-    "@process-engine/solutionexplorer.contracts": "1.0.0",
-    "@process-engine/solutionexplorer.repository.contracts": "4.0.0"
+    "@process-engine/solutionexplorer.contracts": "^1.0.0",
+    "@process-engine/solutionexplorer.repository.contracts": "^4.1.0"
   },
   "devDependencies": {
-    "@essential-projects/tslint-config": "1.0.0",
-    "gulp": "^3.9.1",
-    "gulptraum": "^2.3.0",
-    "gulptraum-typescript": "^1.5.0",
+    "@essential-projects/tslint-config": "^1.0.0",
+    "@types/node": "^10.0.0",
+    "gulp": "^4.0.0",
+    "gulptraum": "^3.0.0",
+    "gulptraum-typescript": "^3.0.0",
     "tsconfig": "^7.0.0",
     "tslint": "^5.10.0",
     "typescript": "^2.8.3"
