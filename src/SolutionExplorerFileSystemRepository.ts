@@ -6,7 +6,9 @@ import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repo
 import * as fs from 'fs';
 import * as path from 'path';
 import {promisify} from 'util';
-import * as trash from 'trash';
+
+// tslint:disable-next-line
+const trash = require('trash');
 
 const BPMN_FILE_SUFFIX: string = '.bpmn';
 
