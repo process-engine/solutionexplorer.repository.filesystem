@@ -22,6 +22,11 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
   private _rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
 
+  constructor(trashFolderLocation: string) {
+    // trashFolderLocation is not relevant here,
+    // trashing is managed by 'trash' npm package
+  }
+
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
     await this._checkForDirectory(pathspec);
 
