@@ -6,12 +6,12 @@ import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repo
 import * as fs from 'fs';
 import * as path from 'path';
 import {promisify} from 'util';
-import * as trash from 'trash';
 
 const BPMN_FILE_SUFFIX: string = '.bpmn';
 
 export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRepository {
 
+  private _trashFolderLocation: string;
   private _basePath: string;
   private _identity: IIdentity;
 
@@ -21,8 +21,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
 
   constructor(trashFolderLocation: string) {
-    // trashFolderLocation is not relevant here,
-    // trashing is managed by 'trash' npm package
+    this._trashFolderLocation = trashFolderLocation;
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
@@ -114,7 +113,16 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public async deleteDiagram(diagram: IDiagram): Promise<void> {
-    await trash(diagram.uri);
+    try {
+      await this._checkForDirectory(this._trashFolderLocation);
+    } catch (error) {
+      throw new BadRequestError('Trash folder is not writeable.');
+    }
+
+    const desiredName: string = path.join(this._trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
+    const targetFile: string = await this._findUnusedFilename(desiredName);
+
+    await this._rename(diagram.uri, targetFile);
   }
 
   public async renameDiagram(diagram: IDiagram, newName: string): Promise<IDiagram> {
@@ -134,6 +142,25 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
 
     return renamedDiagram;
+  }
+
+  /**
+   * Tries to construct a filename that is currently unused. The method will
+   * keep adding parts to the desiredName until its the filename is unused.
+   *
+   * @param desiredName the desired name of the file.
+   * @return a filename that is currently unused.
+   */
+  private async _findUnusedFilename(desiredName: string): Promise<string> {
+    let currentName: string = desiredName;
+    let attempt: number = 1;
+
+    while (fs.existsSync(currentName)) {
+      currentName = `${desiredName}.${attempt}`;
+      attempt++;
+    }
+
+    return currentName;
   }
 
   private async _checkForDirectory(directoryPath: string): Promise<void> {
