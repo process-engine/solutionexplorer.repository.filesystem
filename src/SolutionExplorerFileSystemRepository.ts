@@ -26,9 +26,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     this._trashFolderLocation = trashFolderLocation;
   }
 
-  public watchFile(filepath: string, callback: (path: string) => void): void {
-    const watcher: fs.FSWatcher = fs.watch(filepath, () => {
-      callback(filepath);
+  public watchFile(filepath: string, callback: (event: string, previousFilepath: string, newFilename: string) => void): void {
+    const watcher: fs.FSWatcher = fs.watch(filepath, (event: string, newFilename: string) => {
+      callback(event, filepath, newFilename);
     });
 
     this._watchers.set(filepath, watcher);
