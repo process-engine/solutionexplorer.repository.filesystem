@@ -3,8 +3,6 @@ import {IIdentity} from '@essential-projects/iam_contracts';
 import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
 import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 
-import {FSWatcher} from 'chokidar';
-
 import * as fs from 'fs';
 import * as path from 'path';
 import {promisify} from 'util';
@@ -16,7 +14,6 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _trashFolderLocation: string;
   private _basePath: string;
   private _identity: IIdentity;
-  private _fileWatcher: FSWatcher;
 
   private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
@@ -25,23 +22,16 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   constructor(trashFolderLocation: string) {
     this._trashFolderLocation = trashFolderLocation;
-    this._fileWatcher = new FSWatcher();
   }
 
-  public addFileToWatch(filepath: string): void {
-    this._fileWatcher.add(filepath);
+  public watchFile(filepath: string, callback: (path: string) => void): void {
+    fs.watchFile(filepath, () => {
+      callback(filepath);
+    });
   }
 
-  public removeFileFromWatching(filepath: string): void {
-    this._fileWatcher.unwatch(filepath);
-  }
-
-  public addFileChangeCallback(callback: (path: string) => void): void {
-    this._fileWatcher.on('change', callback);
-  }
-
-  public removeFileChangeCallback(callback: (path: string) => void): void {
-    this._fileWatcher.removeListener('change', callback);
+  public removeFileChangeCallback(filepath: string): void {
+    fs.unwatchFile(filepath);
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
