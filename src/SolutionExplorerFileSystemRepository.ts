@@ -15,6 +15,8 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _basePath: string;
   private _identity: IIdentity;
 
+  private _watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
+
   private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
@@ -25,13 +27,24 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public watchFile(filepath: string, callback: (path: string) => void): void {
-    fs.watchFile(filepath, () => {
+    const watcher: fs.FSWatcher = fs.watch(filepath, () => {
       callback(filepath);
     });
+
+    this._watchers.set(filepath, watcher);
   }
 
   public unwatchFile(filepath: string): void {
-    fs.unwatchFile(filepath);
+    const watcher: fs.FSWatcher = this._watchers.get(filepath);
+
+    const watcherDoesNotExist: boolean = watcher === undefined;
+    if (watcherDoesNotExist) {
+      return;
+    }
+
+    watcher.close();
+
+    this._watchers.delete(filepath);
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
