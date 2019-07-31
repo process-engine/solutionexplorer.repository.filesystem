@@ -30,7 +30,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     });
   }
 
-  public removeFileChangeCallback(filepath: string): void {
+  public unwatchFile(filepath: string): void {
     fs.unwatchFile(filepath);
   }
 
