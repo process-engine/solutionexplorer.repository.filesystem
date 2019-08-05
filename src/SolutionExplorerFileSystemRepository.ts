@@ -16,6 +16,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _identity: IIdentity;
 
   private _watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
+  private _filesWaitingFor: Array<string> = [];
 
   private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
@@ -43,6 +44,18 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
       callback(occuredEvent, filepath, newFilename);
 
+      const fileExistsNoLonger: boolean = !fs.existsSync(filepath);
+      if (fileExistsNoLonger) {
+        this.unwatchFile(filepath);
+
+        this._filesWaitingFor.push(filepath);
+        await this.waitUntillFileExists(filepath);
+
+        this.watchFile(filepath, callback);
+
+        callback('restore', filepath, this.getFilenameByPath(filepath));
+      }
+
       isCollectingEvents = false;
       eventsOccured = [];
     });
@@ -52,6 +65,13 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   public unwatchFile(filepath: string): void {
     const watcher: fs.FSWatcher = this._watchers.get(filepath);
+
+    if (this._filesWaitingFor.includes(filepath)) {
+      const indexOfFile: number = this._filesWaitingFor.indexOf(filepath);
+      if (indexOfFile > -1) {
+        this._filesWaitingFor.splice(indexOfFile, 1);
+      }
+    }
 
     const watcherDoesNotExist: boolean = watcher === undefined;
     if (watcherDoesNotExist) {
@@ -189,6 +209,34 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
         resolve();
       // tslint:disable-next-line: no-magic-numbers
       }, 100);
+    });
+  }
+
+  private getFilenameByPath(filepath: string): string {
+    const lastIndexOfSlash: number = filepath.lastIndexOf('/');
+    const lastIndexOfBackSlash: number = filepath.lastIndexOf('\\');
+    const indexBeforeFilename: number = Math.max(lastIndexOfSlash, lastIndexOfBackSlash);
+
+    const filename: string = filepath.replace(/^.*[\\/]/, '');
+
+    return filename;
+  }
+
+  private waitUntillFileExists(filepath: string): Promise<void> {
+    return new Promise((resolve: Function): void => {
+      const interval: NodeJS.Timeout = setInterval(() => {
+        if (!this._filesWaitingFor.includes(filepath)) {
+          clearInterval(interval);
+
+          return;
+        }
+
+        if (fs.existsSync(filepath)) {
+          clearInterval(interval);
+          resolve();
+        }
+      // tslint:disable-next-line: no-magic-numbers
+      }, 500);
     });
   }
 
