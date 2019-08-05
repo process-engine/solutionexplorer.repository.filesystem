@@ -27,8 +27,24 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public watchFile(filepath: string, callback: (event: string, previousFilepath: string, newFilename: string) => void): void {
-    const watcher: fs.FSWatcher = fs.watch(filepath, (event: string, newFilename: string) => {
-      callback(event, filepath, newFilename);
+    let isCollectingEvents: boolean = false;
+    let eventsOccured: Array<string> = [];
+
+    const watcher: fs.FSWatcher = fs.watch(filepath, async(event: string, newFilename: string) => {
+      eventsOccured.push(event);
+      if (isCollectingEvents) {
+        return;
+      }
+
+      isCollectingEvents = true;
+      await this.wait100Ms();
+
+      const occuredEvent: string = eventsOccured.includes('rename') ? 'rename' : 'change';
+
+      callback(occuredEvent, filepath, newFilename);
+
+      isCollectingEvents = false;
+      eventsOccured = [];
     });
 
     this._watchers.set(filepath, watcher);
@@ -165,6 +181,15 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
 
     return renamedDiagram;
+  }
+
+  private wait100Ms(): Promise<void> {
+    return new Promise((resolve: Function): void => {
+      setTimeout(() => {
+        resolve();
+      // tslint:disable-next-line: no-magic-numbers
+      }, 100);
+    });
   }
 
   /**
