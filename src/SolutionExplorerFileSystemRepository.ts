@@ -38,7 +38,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
       }
 
       isCollectingEvents = true;
-      await this.wait100Ms();
+      await this._wait100Ms();
 
       const occuredEvent: string = eventsOccured.includes('rename') ? 'rename' : 'change';
 
@@ -49,11 +49,11 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
         this.unwatchFile(filepath);
 
         this._filesWaitingFor.push(filepath);
-        await this.waitUntillFileExists(filepath);
+        await this._waitUntilFileExists(filepath);
 
         this.watchFile(filepath, callback);
 
-        callback('restore', filepath, this.getFilenameByPath(filepath));
+        callback('restore', filepath, this._getFilenameByPath(filepath));
       }
 
       isCollectingEvents = false;
@@ -203,7 +203,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     return renamedDiagram;
   }
 
-  private wait100Ms(): Promise<void> {
+  private _wait100Ms(): Promise<void> {
     return new Promise((resolve: Function): void => {
       setTimeout(() => {
         resolve();
@@ -212,7 +212,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     });
   }
 
-  private getFilenameByPath(filepath: string): string {
+  private _getFilenameByPath(filepath: string): string {
     const lastIndexOfSlash: number = filepath.lastIndexOf('/');
     const lastIndexOfBackSlash: number = filepath.lastIndexOf('\\');
     const indexBeforeFilename: number = Math.max(lastIndexOfSlash, lastIndexOfBackSlash);
@@ -222,7 +222,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     return filename;
   }
 
-  private waitUntillFileExists(filepath: string): Promise<void> {
+  private _waitUntilFileExists(filepath: string): Promise<void> {
     return new Promise((resolve: Function): void => {
       const interval: NodeJS.Timeout = setInterval(() => {
         if (!this._filesWaitingFor.includes(filepath)) {
