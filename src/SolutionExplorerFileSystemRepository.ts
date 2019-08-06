@@ -44,8 +44,8 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
       callback(occuredEvent, filepath, newFilename);
 
-      const fileExistsNoLonger: boolean = !fs.existsSync(filepath);
-      if (fileExistsNoLonger) {
+      const fileNoLongerExists: boolean = !fs.existsSync(filepath);
+      if (fileNoLongerExists) {
         this.unwatchFile(filepath);
 
         this._filesWaitingFor.push(filepath);
