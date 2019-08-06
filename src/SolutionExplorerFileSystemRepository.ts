@@ -1,7 +1,7 @@
 import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
-import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
+import {IFileChangedCallback, ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -27,7 +27,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     this._trashFolderLocation = trashFolderLocation;
   }
 
-  public watchFile(filepath: string, callback: (event: string, previousFilepath: string, newFilename: string) => void): void {
+  public watchFile(filepath: string, callback: IFileChangedCallback): void {
     let isCollectingEvents: boolean = false;
     let eventsOccured: Array<string> = [];
 
