@@ -15,7 +15,7 @@
   "dependencies": {
     "@essential-projects/errors_ts": "^1.2.0",
     "@process-engine/solutionexplorer.contracts": "^1.0.0",
-    "@process-engine/solutionexplorer.repository.contracts": "feature~make_files_watchable"
+    "@process-engine/solutionexplorer.repository.contracts": "4.2.0"
   },
   "devDependencies": {
     "@essential-projects/tslint-config": "^1.0.0",
