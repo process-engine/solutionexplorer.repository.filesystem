@@ -1,7 +1,7 @@
 import {BadRequestError, InternalServerError, NotFoundError} from '@essential-projects/errors_ts';
 import {IIdentity} from '@essential-projects/iam_contracts';
 import {IDiagram, ISolution} from '@process-engine/solutionexplorer.contracts';
-import {ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
+import {IFileChangedCallback, ISolutionExplorerRepository} from '@process-engine/solutionexplorer.repository.contracts';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,6 +15,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private _basePath: string;
   private _identity: IIdentity;
 
+  private _watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
+  private _filesWaitingFor: Array<string> = [];
+
   private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
@@ -22,6 +25,62 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   constructor(trashFolderLocation: string) {
     this._trashFolderLocation = trashFolderLocation;
+  }
+
+  public watchFile(filepath: string, callback: IFileChangedCallback): void {
+    let isCollectingEvents: boolean = false;
+    let eventsOccured: Array<string> = [];
+
+    const watcher: fs.FSWatcher = fs.watch(filepath, async(event: string, newFilename: string) => {
+      eventsOccured.push(event);
+      if (isCollectingEvents) {
+        return;
+      }
+
+      isCollectingEvents = true;
+      await this._wait100Ms();
+
+      const occuredEvent: string = eventsOccured.includes('rename') ? 'rename' : 'change';
+
+      callback(occuredEvent, filepath, newFilename);
+
+      const fileNoLongerExists: boolean = !fs.existsSync(filepath);
+      if (fileNoLongerExists) {
+        this.unwatchFile(filepath);
+
+        this._filesWaitingFor.push(filepath);
+        await this._waitUntilFileExists(filepath);
+
+        this.watchFile(filepath, callback);
+
+        callback('restore', filepath, this._getFilenameByPath(filepath));
+      }
+
+      isCollectingEvents = false;
+      eventsOccured = [];
+    });
+
+    this._watchers.set(filepath, watcher);
+  }
+
+  public unwatchFile(filepath: string): void {
+    const watcher: fs.FSWatcher = this._watchers.get(filepath);
+
+    if (this._filesWaitingFor.includes(filepath)) {
+      const indexOfFile: number = this._filesWaitingFor.indexOf(filepath);
+      if (indexOfFile > -1) {
+        this._filesWaitingFor.splice(indexOfFile, 1);
+      }
+    }
+
+    const watcherDoesNotExist: boolean = watcher === undefined;
+    if (watcherDoesNotExist) {
+      return;
+    }
+
+    watcher.close();
+
+    this._watchers.delete(filepath);
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
@@ -142,6 +201,43 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
 
     return renamedDiagram;
+  }
+
+  private _wait100Ms(): Promise<void> {
+    return new Promise((resolve: Function): void => {
+      setTimeout(() => {
+        resolve();
+      // tslint:disable-next-line: no-magic-numbers
+      }, 100);
+    });
+  }
+
+  private _getFilenameByPath(filepath: string): string {
+    const lastIndexOfSlash: number = filepath.lastIndexOf('/');
+    const lastIndexOfBackSlash: number = filepath.lastIndexOf('\\');
+    const indexBeforeFilename: number = Math.max(lastIndexOfSlash, lastIndexOfBackSlash);
+
+    const filename: string = filepath.replace(/^.*[\\/]/, '');
+
+    return filename;
+  }
+
+  private _waitUntilFileExists(filepath: string): Promise<void> {
+    return new Promise((resolve: Function): void => {
+      const interval: NodeJS.Timeout = setInterval(() => {
+        if (!this._filesWaitingFor.includes(filepath)) {
+          clearInterval(interval);
+
+          return;
+        }
+
+        if (fs.existsSync(filepath)) {
+          clearInterval(interval);
+          resolve();
+        }
+      // tslint:disable-next-line: no-magic-numbers
+      }, 500);
+    });
   }
 
   /**
