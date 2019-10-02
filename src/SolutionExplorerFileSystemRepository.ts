@@ -7,91 +7,92 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {promisify} from 'util';
 
-const BPMN_FILE_SUFFIX: string = '.bpmn';
+const BPMN_FILE_SUFFIX = '.bpmn';
 
 export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRepository {
 
-  private _trashFolderLocation: string;
-  private _basePath: string;
-  private _identity: IIdentity;
+  private readonly trashFolderLocation: string;
+  private basePath: string;
+  private identity: IIdentity;
 
-  private _watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
-  private _filesWaitingFor: Array<string> = [];
+  private watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
+  private filesWaitingFor: Array<string> = [];
 
-  private _readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
-  private _readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
-  private _writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
-  private _rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
+  private readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
+  private readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
+  private rename: (oldPath: fs.PathLike, newPath: fs.PathLike) => Promise<void> = promisify(fs.rename);
 
   constructor(trashFolderLocation: string) {
-    this._trashFolderLocation = trashFolderLocation;
+    this.trashFolderLocation = trashFolderLocation;
   }
 
   public watchFile(filepath: string, callback: IFileChangedCallback): void {
-    let isCollectingEvents: boolean = false;
+    let isCollectingEvents = false;
     let eventsOccured: Array<string> = [];
 
-    const watcher: fs.FSWatcher = fs.watch(filepath, async(event: string, newFilename: string) => {
+    const watcher = fs.watch(filepath, async (event: string, newFilename: string): Promise<void> => {
       eventsOccured.push(event);
       if (isCollectingEvents) {
         return;
       }
 
       isCollectingEvents = true;
-      await this._wait100Ms();
+      await this.wait100Ms();
 
-      const occuredEvent: string = eventsOccured.includes('rename') ? 'rename' : 'change';
+      const occuredEvent = eventsOccured.includes('rename') ? 'rename' : 'change';
 
       callback(occuredEvent, filepath, newFilename);
 
-      const fileNoLongerExists: boolean = !fs.existsSync(filepath);
+      const fileNoLongerExists = !fs.existsSync(filepath);
       if (fileNoLongerExists) {
         this.unwatchFile(filepath);
 
-        this._filesWaitingFor.push(filepath);
-        await this._waitUntilFileExists(filepath);
+        this.filesWaitingFor.push(filepath);
+        await this.waitUntilFileExists(filepath);
 
         this.watchFile(filepath, callback);
 
-        callback('restore', filepath, this._getFilenameByPath(filepath));
+        callback('restore', filepath, this.getFilenameByPath(filepath));
       }
 
       isCollectingEvents = false;
       eventsOccured = [];
     });
 
-    this._watchers.set(filepath, watcher);
+    this.watchers.set(filepath, watcher);
   }
 
   public unwatchFile(filepath: string): void {
-    const watcher: fs.FSWatcher = this._watchers.get(filepath);
+    const watcher = this.watchers.get(filepath);
 
-    if (this._filesWaitingFor.includes(filepath)) {
-      const indexOfFile: number = this._filesWaitingFor.indexOf(filepath);
+    if (this.filesWaitingFor.includes(filepath)) {
+      const indexOfFile = this.filesWaitingFor.indexOf(filepath);
       if (indexOfFile > -1) {
-        this._filesWaitingFor.splice(indexOfFile, 1);
+        this.filesWaitingFor.splice(indexOfFile, 1);
       }
     }
 
-    const watcherDoesNotExist: boolean = watcher === undefined;
+    const watcherDoesNotExist = watcher === undefined;
     if (watcherDoesNotExist) {
       return;
     }
 
     watcher.close();
 
-    this._watchers.delete(filepath);
+    this.watchers.delete(filepath);
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
-    await this._checkForDirectory(pathspec);
+    await this.checkForDirectory(pathspec);
 
-    this._basePath = pathspec;
-    this._identity = identity;
+    this.basePath = pathspec;
+    this.identity = identity;
   }
 
   public async getDiagrams(): Promise<Array<IDiagram>> {
-    const filesInDirectory: Array<string> = await this._readDirectory(this._basePath);
+    const filesInDirectory = await this.readDirectory(this.basePath);
     const bpmnFiles: Array<string> = [];
 
     for (const file of filesInDirectory) {
@@ -101,12 +102,12 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     }
 
     const diagrams: Array<Promise<IDiagram>> = bpmnFiles
-      .map(async(file: string) => {
+      .map(async (file: string): Promise<IDiagram> => {
 
-        const fullPathToFile: string = path.join(this._basePath, file);
-        const fileNameWithoutBpmnSuffix: string = path.basename(file, BPMN_FILE_SUFFIX);
+        const fullPathToFile = path.join(this.basePath, file);
+        const fileNameWithoutBpmnSuffix = path.basename(file, BPMN_FILE_SUFFIX);
 
-        const xml: string = await this._readFile(fullPathToFile, 'utf8');
+        const xml = await this.readFile(fullPathToFile, 'utf8');
 
         const diagram: IDiagram = {
           name: fileNameWithoutBpmnSuffix,
@@ -115,17 +116,17 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
         };
 
         return diagram;
-    });
+      });
 
     return Promise.all(diagrams);
   }
 
   public async getDiagramByName(diagramName: string, newPath?: string): Promise<IDiagram> {
-    const pathSpec: string = newPath ? newPath : this._basePath;
+    const pathSpec = newPath || this.basePath;
 
-    const fullPathToFile: string = path.join(pathSpec, `${diagramName}.bpmn`);
+    const fullPathToFile = path.join(pathSpec, `${diagramName}.bpmn`);
 
-    const xml: string = await this._readFile(fullPathToFile, 'utf8');
+    const xml = await this.readFile(fullPathToFile, 'utf8');
 
     const diagram: IDiagram = {
       name: diagramName,
@@ -138,19 +139,19 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public async saveDiagram(diagramToSave: IDiagram, newPathSpec?: string): Promise<void> {
-    const newPathSpecWasSet: boolean = newPathSpec !== null && newPathSpec !== undefined;
-    let pathToWriteDiagram: string = diagramToSave.uri;
+    const newPathSpecWasSet = newPathSpec !== null && newPathSpec !== undefined;
+    let pathToWriteDiagram = diagramToSave.uri;
 
     if (newPathSpecWasSet) {
       pathToWriteDiagram = newPathSpec;
     }
 
-    await this._checkWriteablity(pathToWriteDiagram);
+    await this.checkWriteablity(pathToWriteDiagram);
 
     try {
-      await this._writeFile(pathToWriteDiagram, diagramToSave.xml);
+      await this.writeFile(pathToWriteDiagram, diagramToSave.xml);
     } catch (e) {
-      const error: InternalServerError = new InternalServerError('Unable to save diagram.');
+      const error = new InternalServerError('Unable to save diagram.');
       error.additionalInformation = e;
 
       throw error;
@@ -158,13 +159,13 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public async saveSolution(solution: ISolution, pathToSolution?: string): Promise<void> {
-    const newPathWasSet: boolean = pathToSolution !== undefined && pathToSolution !== null;
+    const newPathWasSet = pathToSolution !== undefined && pathToSolution !== null;
 
     if (newPathWasSet) {
-      await this.openPath(pathToSolution, this._identity);
+      await this.openPath(pathToSolution, this.identity);
     }
 
-    const promises: Array<Promise<void>> = solution.diagrams.map((diagram: IDiagram) => {
+    const promises = solution.diagrams.map((diagram: IDiagram): Promise<void> => {
       return this.saveDiagram(diagram);
     });
 
@@ -173,59 +174,55 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
   public async deleteDiagram(diagram: IDiagram): Promise<void> {
     try {
-      await this._checkForDirectory(this._trashFolderLocation);
+      await this.checkForDirectory(this.trashFolderLocation);
     } catch (error) {
       throw new BadRequestError('Trash folder is not writeable.');
     }
 
-    const desiredName: string = path.join(this._trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
-    const targetFile: string = await this._findUnusedFilename(desiredName);
+    const desiredName = path.join(this.trashFolderLocation, diagram.name + BPMN_FILE_SUFFIX);
+    const targetFile = await this.findUnusedFilename(desiredName);
 
-    await this._rename(diagram.uri, targetFile);
+    await this.rename(diagram.uri, targetFile);
   }
 
   public async renameDiagram(diagram: IDiagram, newName: string): Promise<IDiagram> {
-    const nameWithSuffix: string = newName + BPMN_FILE_SUFFIX;
-    const newDiagramUri: string = path.join(this._basePath, nameWithSuffix);
+    const nameWithSuffix = newName + BPMN_FILE_SUFFIX;
+    const newDiagramUri = path.join(this.basePath, nameWithSuffix);
 
-    await this._checkWriteablity(newDiagramUri);
+    await this.checkWriteablity(newDiagramUri);
 
-    const diagramNameChanged: boolean = newName.toLowerCase() !== diagram.name.toLowerCase();
-    const fileAlreadyExists: boolean = fs.existsSync(newDiagramUri);
+    const diagramNameChanged = newName.toLowerCase() !== diagram.name.toLowerCase();
+    const fileAlreadyExists = fs.existsSync(newDiagramUri);
     if (fileAlreadyExists && diagramNameChanged) {
-      throw new BadRequestError(`A file named: ${newName} already exists in location: ${this._basePath}.`);
+      throw new BadRequestError(`A file named: ${newName} already exists in location: ${this.basePath}.`);
     }
 
-    await this._rename(diagram.uri, newDiagramUri);
+    await this.rename(diagram.uri, newDiagramUri);
 
-    const renamedDiagram: IDiagram = await this.getDiagramByName(newName);
+    const renamedDiagram = await this.getDiagramByName(newName);
 
     return renamedDiagram;
   }
 
-  private _wait100Ms(): Promise<void> {
+  private wait100Ms(): Promise<void> {
     return new Promise((resolve: Function): void => {
-      setTimeout(() => {
+      setTimeout((): void => {
         resolve();
-      // tslint:disable-next-line: no-magic-numbers
       }, 100);
     });
   }
 
-  private _getFilenameByPath(filepath: string): string {
-    const lastIndexOfSlash: number = filepath.lastIndexOf('/');
-    const lastIndexOfBackSlash: number = filepath.lastIndexOf('\\');
-    const indexBeforeFilename: number = Math.max(lastIndexOfSlash, lastIndexOfBackSlash);
-
-    const filename: string = filepath.replace(/^.*[\\/]/, '');
+  private getFilenameByPath(filepath: string): string {
+    const filename = filepath.replace(/^.*[\\/]/, '');
 
     return filename;
   }
 
-  private _waitUntilFileExists(filepath: string): Promise<void> {
+  private waitUntilFileExists(filepath: string): Promise<void> {
     return new Promise((resolve: Function): void => {
-      const interval: NodeJS.Timeout = setInterval(() => {
-        if (!this._filesWaitingFor.includes(filepath)) {
+
+      const interval = setInterval((): void => {
+        if (!this.filesWaitingFor.includes(filepath)) {
           clearInterval(interval);
 
           return;
@@ -235,7 +232,6 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
           clearInterval(interval);
           resolve();
         }
-      // tslint:disable-next-line: no-magic-numbers
       }, 500);
     });
   }
@@ -247,9 +243,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
    * @param desiredName the desired name of the file.
    * @return a filename that is currently unused.
    */
-  private async _findUnusedFilename(desiredName: string): Promise<string> {
-    let currentName: string = desiredName;
-    let attempt: number = 1;
+  private async findUnusedFilename(desiredName: string): Promise<string> {
+    let currentName = desiredName;
+    let attempt = 1;
 
     while (fs.existsSync(currentName)) {
       currentName = `${desiredName}.${attempt}`;
@@ -259,22 +255,23 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     return currentName;
   }
 
-  private async _checkForDirectory(directoryPath: string): Promise<void> {
-    const pathDoesNotExist: boolean = !fs.existsSync(directoryPath);
+  private async checkForDirectory(directoryPath: string): Promise<void> {
+    const pathDoesNotExist = !fs.existsSync(directoryPath);
     if (pathDoesNotExist) {
       throw new NotFoundError(`'${directoryPath}' does not exist.`);
     }
 
-    const stat: fs.Stats = fs.statSync(directoryPath);
-    const pathIsNotADirectory: boolean = !stat.isDirectory();
+    const stat = fs.statSync(directoryPath);
+    const pathIsNotADirectory = !stat.isDirectory();
     if (pathIsNotADirectory) {
       throw new BadRequestError(`'${directoryPath}' is not a directory.`);
     }
   }
 
-  private async _checkWriteablity(filePath: string): Promise<void> {
-    const directoryPath: string = path.dirname(filePath);
+  private async checkWriteablity(filePath: string): Promise<void> {
+    const directoryPath = path.dirname(filePath);
 
-    await this._checkForDirectory(directoryPath);
+    await this.checkForDirectory(directoryPath);
   }
+
 }
