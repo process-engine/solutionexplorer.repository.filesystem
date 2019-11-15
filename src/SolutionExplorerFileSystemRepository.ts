@@ -146,7 +146,18 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
       pathToWriteDiagram = newPathSpec;
     }
 
-    await this.checkWriteablity(pathToWriteDiagram);
+    try {
+      await this.checkWriteablity(pathToWriteDiagram);
+    } catch (error) {
+      const folderDoesNotExist: boolean = error.code === 404;
+      if (folderDoesNotExist) {
+        await fs.promises.mkdir(path.dirname(pathToWriteDiagram), {recursive: true});
+
+        await this.checkWriteablity(pathToWriteDiagram);
+      } else {
+        throw error;
+      }
+    }
 
     try {
       await this.writeFile(pathToWriteDiagram, diagramToSave.xml);
