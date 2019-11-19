@@ -6,6 +6,7 @@ import {IFileChangedCallback, ISolutionExplorerRepository} from '@process-engine
 import * as fs from 'fs';
 import * as path from 'path';
 import {promisify} from 'util';
+import {v4 as uuid} from 'node-uuid';
 
 const BPMN_FILE_SUFFIX = '.bpmn';
 
@@ -15,6 +16,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private basePath: string;
   private identity: IIdentity;
 
+  private solutionWatchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
   private watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
   private filesWaitingFor: Array<string> = [];
 
@@ -82,6 +84,50 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     watcher.close();
 
     this.watchers.delete(filepath);
+  }
+
+  public watchSolution(callback: Function): string {
+    const eventListenerId: string = uuid();
+
+    const watchSolution: (event: string, newFilename: string) => Promise<void> = async (event: string, newFilename: string): Promise<void> => {
+      callback();
+
+      const solutionNoLongerExists = !fs.existsSync(this.basePath);
+      if (solutionNoLongerExists) {
+        this.unwatchSolution(eventListenerId);
+
+        try {
+          await this.waitUntilSolutionExists(eventListenerId);
+        } catch {
+          return;
+        }
+
+        const newWatcher = fs.watch(this.basePath, watchSolution);
+
+        this.solutionWatchers.set(eventListenerId, newWatcher);
+
+        callback();
+      }
+    };
+
+    const watcher = fs.watch(this.basePath, watchSolution);
+
+    this.solutionWatchers.set(eventListenerId, watcher);
+
+    return eventListenerId;
+  }
+
+  public unwatchSolution(eventListenerId: string): void {
+    const watcherDoesNotExist = !this.solutionWatchers.has(eventListenerId);
+    if (watcherDoesNotExist) {
+      return;
+    }
+
+    const watcher = this.solutionWatchers.get(eventListenerId);
+
+    watcher.close();
+
+    this.solutionWatchers.delete(eventListenerId);
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
@@ -241,6 +287,23 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
         if (fs.existsSync(filepath)) {
           clearInterval(interval);
+          resolve();
+        }
+      }, 500);
+    });
+  }
+
+  private waitUntilSolutionExists(eventListenerId: string): Promise<void> {
+    return new Promise((resolve: Function, reject: Function): void => {
+      const interval = setInterval((): void => {
+        const eventListenerWasRemoved = !this.solutionWatchers.has(eventListenerId);
+        if (eventListenerWasRemoved) {
+          reject();
+        }
+
+        if (fs.existsSync(this.basePath)) {
+          clearInterval(interval);
+
           resolve();
         }
       }, 500);
