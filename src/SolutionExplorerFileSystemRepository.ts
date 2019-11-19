@@ -89,7 +89,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   public watchSolution(callback: Function): string {
     const eventListenerId: string = uuid();
 
-    const watchSolution = async (event: string, newFilename: string): Promise<void> => {
+    const watchSolution = async (event: string): Promise<void> => {
       callback();
 
       const solutionNoLongerExists = !fs.existsSync(this.basePath);
