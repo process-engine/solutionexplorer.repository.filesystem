@@ -19,7 +19,8 @@
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
     "@process-engine/solutionexplorer.contracts": "1.1.0",
-    "@process-engine/solutionexplorer.repository.contracts": "feature~add_solution_changed_callback"
+    "@process-engine/solutionexplorer.repository.contracts": "feature~add_solution_changed_callback",
+    "node-uuid": "^1.4.8"
   },
   "devDependencies": {
     "@essential-projects/eslint-config": "^1.0.0",
