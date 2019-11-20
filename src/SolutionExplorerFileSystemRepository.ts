@@ -114,6 +114,27 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
 
     this.solutionWatchers.set(eventListenerId, watcher);
 
+    let folderIsRemoved = false;
+    const healthCheckInterval = setInterval(() => {
+      const eventListenerWasRemoved = !this.solutionWatchers.has(eventListenerId);
+      if (eventListenerWasRemoved) {
+        clearInterval(healthCheckInterval);
+
+        return;
+      }
+
+      const folderExists = fs.existsSync(this.basePath);
+      if (folderIsRemoved && folderExists) {
+        folderIsRemoved = false;
+
+        callback();
+      } else if (!folderIsRemoved && !folderExists) {
+        folderIsRemoved = true;
+
+        callback();
+      }
+    }, 200);
+
     return eventListenerId;
   }
 
