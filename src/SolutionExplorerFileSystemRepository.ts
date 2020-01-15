@@ -20,7 +20,6 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
   private filesWaitingFor: Array<string> = [];
 
-  private readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
