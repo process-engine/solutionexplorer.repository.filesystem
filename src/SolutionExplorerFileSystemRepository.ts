@@ -20,7 +20,6 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
   private filesWaitingFor: Array<string> = [];
 
-  private readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
@@ -159,12 +158,12 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public async getDiagrams(): Promise<Array<IDiagram>> {
-    const filesInDirectory = await this.readDirectory(this.basePath);
+    const filesInDirectory = fs.readdirSync(this.basePath, {withFileTypes: true});
     const bpmnFiles: Array<string> = [];
 
     for (const file of filesInDirectory) {
-      if (file.endsWith(BPMN_FILE_SUFFIX)) {
-        bpmnFiles.push(file);
+      if (!file.isDirectory() && file.name.endsWith(BPMN_FILE_SUFFIX)) {
+        bpmnFiles.push(file.name);
       }
     }
 
