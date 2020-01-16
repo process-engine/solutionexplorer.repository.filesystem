@@ -70,10 +70,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const watcher = this.watchers.get(filepath);
 
     if (this.filesWaitingFor.includes(filepath)) {
-      const indexOfFile = this.filesWaitingFor.indexOf(filepath);
-      if (indexOfFile > -1) {
-        this.filesWaitingFor.splice(indexOfFile, 1);
-      }
+      this.filesWaitingFor.splice(this.filesWaitingFor.indexOf(filepath), 1);
     }
 
     const watcherDoesNotExist = watcher === undefined;
