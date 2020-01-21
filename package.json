@@ -1,6 +1,6 @@
 {
   "name": "@process-engine/solutionexplorer.repository.filesystem",
-  "version": "4.5.0-alpha.3",
+  "version": "4.5.0-beta.2",
   "description": "The SolutionExplorer filesystem repository",
   "main": "dist/amd/index.js",
   "typings": "dist/index.d.ts",
