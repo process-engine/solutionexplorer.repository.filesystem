@@ -17,10 +17,10 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private identity: IIdentity;
 
   private solutionWatchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
+  private waitingSolutionWatcherIds: Array<string> = [];
   private watchers: Map<string, fs.FSWatcher> = new Map<string, fs.FSWatcher>();
   private filesWaitingFor: Array<string> = [];
 
-  private readDirectory: (path: fs.PathLike) => Promise<Array<string>> = promisify(fs.readdir);
   private readFile: (path: fs.PathLike, encoding: string) => Promise<string> = promisify(fs.readFile);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private writeFile: (path: fs.PathLike, data: any) => Promise<void> = promisify(fs.writeFile);
@@ -70,10 +70,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     const watcher = this.watchers.get(filepath);
 
     if (this.filesWaitingFor.includes(filepath)) {
-      const indexOfFile = this.filesWaitingFor.indexOf(filepath);
-      if (indexOfFile > -1) {
-        this.filesWaitingFor.splice(indexOfFile, 1);
-      }
+      this.filesWaitingFor.splice(this.filesWaitingFor.indexOf(filepath), 1);
     }
 
     const watcherDoesNotExist = watcher === undefined;
@@ -89,7 +86,7 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   public watchSolution(callback: Function): string {
     const eventListenerId: string = uuid();
 
-    const watchSolution = async (event: string): Promise<void> => {
+    const watchSolution = async (): Promise<void> => {
       callback();
 
       const solutionNoLongerExists = !fs.existsSync(this.basePath);
@@ -97,6 +94,8 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
         this.unwatchSolution(eventListenerId);
 
         try {
+          this.waitingSolutionWatcherIds.push(eventListenerId);
+
           await this.waitUntilSolutionExists(eventListenerId);
         } catch {
           return;
@@ -149,6 +148,9 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
     watcher.close();
 
     this.solutionWatchers.delete(eventListenerId);
+    if (this.waitingSolutionWatcherIds.includes(eventListenerId)) {
+      this.filesWaitingFor.splice(this.waitingSolutionWatcherIds.indexOf(eventListenerId), 1);
+    }
   }
 
   public async openPath(pathspec: string, identity: IIdentity): Promise<void> {
@@ -159,12 +161,12 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   }
 
   public async getDiagrams(): Promise<Array<IDiagram>> {
-    const filesInDirectory = await this.readDirectory(this.basePath);
+    const filesInDirectory = fs.readdirSync(this.basePath, {withFileTypes: true});
     const bpmnFiles: Array<string> = [];
 
     for (const file of filesInDirectory) {
-      if (file.endsWith(BPMN_FILE_SUFFIX)) {
-        bpmnFiles.push(file);
+      if (!file.isDirectory() && file.name.endsWith(BPMN_FILE_SUFFIX)) {
+        bpmnFiles.push(file.name);
       }
     }
 
@@ -317,9 +319,12 @@ export class SolutionExplorerFileSystemRepository implements ISolutionExplorerRe
   private waitUntilSolutionExists(eventListenerId: string): Promise<void> {
     return new Promise((resolve: Function, reject: Function): void => {
       const interval = setInterval((): void => {
-        const eventListenerWasRemoved = !this.solutionWatchers.has(eventListenerId);
+
+        const eventListenerWasRemoved = !this.waitingSolutionWatcherIds.includes(eventListenerId);
         if (eventListenerWasRemoved) {
-          reject();
+          reject(new Error('Solution no longer gets watched.'));
+
+          return;
         }
 
         if (fs.existsSync(this.basePath)) {
