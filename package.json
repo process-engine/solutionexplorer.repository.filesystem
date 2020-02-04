@@ -19,7 +19,7 @@
   "dependencies": {
     "@essential-projects/errors_ts": "^1.5.0",
     "@process-engine/solutionexplorer.contracts": "1.1.0",
-    "@process-engine/solutionexplorer.repository.contracts": "4.4.0-beta.1",
+    "@process-engine/solutionexplorer.repository.contracts": "4.5.0",
     "node-uuid": "^1.4.8"
   },
   "devDependencies": {
