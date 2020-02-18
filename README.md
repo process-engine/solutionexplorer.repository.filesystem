@@ -10,7 +10,7 @@ A subpackage for the SolutionExplorer which provides the filesystem repository u
 - [SolutionExplorer Repository Contracts](https://github.com/process-engine/solutionexplorer.repository.contracts)
 - [SolutionExplorer Repository Management API](https://github.com/process-engine/solutionexplorer.repository.management_api)
 
-### Authors/Contact information?
+### Authors/Contact information
 
 - Alexander Kasten <alexander.kasten@5minds.de>
 - Steffen Knaup <steffen.knaup@5minds.de>
